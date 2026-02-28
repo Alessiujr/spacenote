@@ -1,0 +1,68 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+**/.DS_Store
+.atom/
+.build/
+.buildlog/
+.history/
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# Local configuration
+*.env
+*.local
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+coverage/
+
+# Symbolication & mapping
+app.*.symbols
+app.*.map.json
+
+# IntelliJ / Android Studio / VSCode
+*.iml
+.idea/
+.vscode/
+
+# Mac OS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# iOS specific
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec.json
+
+# Android build artifacts
+android/app/debug
+android/app/profile
+android/app/release
+
+# Generated files
+*.lock
+.packages
+
+# Optional: Firebase config (se lo userai in futuro)
+google-services.json
+
+# Optional: Coverage reports
+coverage/
+
+# Temporary files
+*.tmp
+*.swp
