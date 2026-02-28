@@ -1,15 +1,15 @@
-import 'note_model.dart';
+import 'event_model.dart';
 
 class SectionModel {
   final String id;
   final String name;
   final String icon;
-  final List<NoteModel> notes;
+  final List<EventModel> events;
 
   SectionModel({
     required this.id,
     required this.name,
     required this.icon,
-    this.notes = const [],
+    this.events = const [],
   });
 }
