@@ -336,12 +336,18 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
         child: Text("No events yet"),
       );
     }
+    final List<EventModel> sortedEvents = List<EventModel>.from(events);
+    sortedEvents.sort((a, b) {
+      final na = DateUtilsHelper.nextOccurrence(a.date, a.recurrence);
+      final nb = DateUtilsHelper.nextOccurrence(b.date, b.recurrence);
+      return na.compareTo(nb);
+    });
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: events.length,
+      itemCount: sortedEvents.length,
       itemBuilder: (context, index) {
-        final event = events[index];
+        final event = sortedEvents[index];
 
         final nextDate = DateUtilsHelper.nextOccurrence(event.date, event.recurrence);
         final daysLeft = DateUtilsHelper.daysRemaining(nextDate);
@@ -350,7 +356,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ListTile(
-            title: Text(event.title),
+            title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
             onTap: () async {
               final notesController = TextEditingController(text: event.notes ?? '');
               await showDialog(
@@ -669,7 +675,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                                   return Column(
                                     children: [
                                       ListTile(
-                                        title: Text(ev.title),
+                                        title: Text(ev.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                                       subtitle: Text(subtitle),
                                         trailing: Column(
                                           crossAxisAlignment: CrossAxisAlignment.end,

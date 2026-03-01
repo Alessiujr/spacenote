@@ -444,7 +444,7 @@ class _HomePageState extends State<HomePage> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: Text(item['icon'], style: const TextStyle(fontSize: 22)),
-                  title: Text(ev.title),
+                  title: Text(ev.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -628,7 +628,7 @@ class _HomePageState extends State<HomePage> {
                                       final ev = m['event'] as EventModel;
                                       return ListTile(
                                         leading: Text(m['icon'] ?? '📌'),
-                                        title: Text(m['title'] ?? ''),
+                                        title: Text(m['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                                         subtitle: Text(m['space'] ?? ''),
                                         trailing: ev.cost != null ? Text((settings['currency'] ?? '€') + ev.cost!.toStringAsFixed(2)) : null,
                                       );
