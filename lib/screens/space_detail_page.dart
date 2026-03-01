@@ -570,6 +570,122 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
           }(),
 
           Expanded(child: _buildEventList()),
+          const Divider(),
+          // Costi section
+          ListTile(
+            leading: const Icon(Icons.attach_money),
+            title: const Text('Costi'),
+            subtitle: Builder(builder: (context) {
+              // compute totals
+              final costEvents = events.where((e) => e.cost != null).toList();
+              double annualTotal = 0.0;
+              final now = DateTime.now();
+              for (final ev in costEvents) {
+                if (ev.recurrence.frequency == 'none') {
+                  final next = DateUtilsHelper.nextOccurrence(ev.date, ev.recurrence);
+                  final months = DateUtilsHelper.monthsBetweenNow(next);
+                  final monthly = (ev.cost ?? 0.0) / months;
+                  annualTotal += monthly * 12.0;
+                } else {
+                  final occ = DateUtilsHelper.occurrencesPerYear(ev.recurrence);
+                  annualTotal += (ev.cost ?? 0.0) * occ;
+                }
+              }
+              final monthlyTotal = annualTotal / 12.0;
+              return Text('Mensile: €${monthlyTotal.toStringAsFixed(2)} • Annuale: €${annualTotal.toStringAsFixed(2)}');
+            }),
+            onTap: () {
+              final costEvents = events.where((e) => e.cost != null).toList();
+
+              showDialog(
+                context: context,
+                builder: (c) {
+                  double annualTotal = 0.0;
+                  for (final ev in costEvents) {
+                    if (ev.recurrence.frequency == 'none') {
+                      final next = DateUtilsHelper.nextOccurrence(ev.date, ev.recurrence);
+                      final months = DateUtilsHelper.monthsBetweenNow(next);
+                      final monthly = (ev.cost ?? 0.0) / months;
+                      annualTotal += monthly * 12.0;
+                    } else {
+                      final occ = DateUtilsHelper.occurrencesPerYear(ev.recurrence);
+                      annualTotal += (ev.cost ?? 0.0) * occ;
+                    }
+                  }
+                  final monthlyTotal = annualTotal / 12.0;
+
+                  return AlertDialog(
+                    title: const Text('Calcolo Costi — Dettagli'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (costEvents.isEmpty) const Text('Nessun costo registrato nelle scadenze.'),
+                          if (costEvents.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8.0),
+                              child: Text('Nota: i costi one‑time vengono ammortizzati sui mesi rimanenti fino alla data della scadenza. I costi ricorrenti sono proiettati su base annua in base alla frequenza.'),
+                            ),
+                            Column(
+                              children: costEvents.map((ev) {
+                                  double annual = 0.0;
+                                  double monthly = 0.0;
+                                  String subtitle = ev.recurrence.toReadableString();
+                                  if (ev.recurrence.frequency == 'none') {
+                                    final next = DateUtilsHelper.nextOccurrence(ev.date, ev.recurrence);
+                                    final months = DateUtilsHelper.monthsBetweenNow(next);
+                                    monthly = (ev.cost ?? 0.0) / months;
+                                    annual = monthly * 12.0;
+                                  subtitle = '${subtitle} • Scadenza: ${next.day}/${next.month}/${next.year} • Ammortizzato su ${months} mesi';
+                                  } else {
+                                    final occ = DateUtilsHelper.occurrencesPerYear(ev.recurrence);
+                                    annual = (ev.cost ?? 0.0) * occ;
+                                    monthly = annual / 12.0;
+                                  subtitle = '${subtitle} • Occorrenze/anno: ${occ.toStringAsFixed(2)}';
+                                  }
+
+                                  return Column(
+                                    children: [
+                                      ListTile(
+                                        title: Text(ev.title),
+                                      subtitle: Text(subtitle),
+                                        trailing: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text('Mensile: €${monthly.toStringAsFixed(2)}'),
+                                            Text('Annuale: €${annual.toStringAsFixed(2)}'),
+                                          ],
+                                        ),
+                                      ),
+                                      const Divider(),
+                                    ],
+                                  );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              const Text('Totale mensile', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text('€${monthlyTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ]),
+                            const SizedBox(height: 8),
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              const Text('Totale annuale', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Text('€${annualTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ]),
+                            const SizedBox(height: 12),
+                            const Text('Proiezione sofisticata: la stima tiene conto della frequenza della ricorrenza per arrivare a una stima annuale.'),
+                          ],
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c), child: const Text('Chiudi')),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
 

@@ -169,4 +169,29 @@ class DateUtilsHelper {
 
     return baseDate;
   }
+
+  /// Estimate number of occurrences per year for a recurrence rule.
+  /// Used for cost projections.
+  static double occurrencesPerYear(RecurrenceRule rule) {
+    if (rule.frequency == 'none') return 1.0;
+    if (rule.frequency == 'daily') return 365.0 / (rule.interval <= 0 ? 1 : rule.interval);
+    if (rule.frequency == 'weekly') {
+      final weeksPerYear = 52.0 / (rule.interval <= 0 ? 1 : rule.interval);
+      final daysPerWeek = (rule.weekdays?.length ?? 1).toDouble();
+      return weeksPerYear * daysPerWeek;
+    }
+    if (rule.frequency == 'monthly') return 12.0 / (rule.interval <= 0 ? 1 : rule.interval);
+    if (rule.frequency == 'yearly') return 1.0 / (rule.interval <= 0 ? 1 : rule.interval);
+    return 0.0;
+  }
+
+  /// Months from now until [targetDate]. Minimum 1.
+  static int monthsBetweenNow(DateTime targetDate) {
+    final now = DateTime.now();
+    if (!targetDate.isAfter(now)) return 1;
+    int months = (targetDate.year - now.year) * 12 + (targetDate.month - now.month);
+    if (targetDate.day < now.day) months -= 1;
+    if (months < 1) months = 1;
+    return months;
+  }
 }
