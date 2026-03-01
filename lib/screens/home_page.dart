@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
 import 'space_detail_page.dart';
@@ -44,19 +45,58 @@ class _HomePageState extends State<HomePage> {
 
     if (data.isNotEmpty) {
       setState(() {
-        sections = List<Map<String, dynamic>>.from(data);
-        selectedSection = sections.first["name"];
+        // Normalize loaded sections: ensure events is a List
+        sections = data.map((s) {
+          final name = s['name'];
+          final icon = s['icon'];
+          var events = s['events'];
+
+          if (events is String) {
+            try {
+              final decoded = jsonDecode(events);
+              events = decoded is List ? decoded : [];
+            } catch (_) {
+              events = [];
+            }
+          }
+
+          if (events == null) events = [];
+
+          return {
+            'name': name,
+            'icon': icon,
+            'events': events,
+          };
+        }).toList();
+
+        selectedSection = sections.first['name'];
       });
     }
   }
 
   /// Save storage helper
   Future<void> _saveSections() async {
-    await LocalStorageService.saveSections(
-      sections.map((e) {
-        return e.map((key, value) => MapEntry(key, value.toString()));
-      }).toList(),
-    );
+    // Build serializable sections: ensure events are converted to JSON maps
+    final serializable = sections.map((section) {
+      final events = section['events'];
+      List<dynamic> eventsJson = [];
+
+      if (events is List) {
+        eventsJson = events.map((ev) {
+          if (ev is EventModel) return ev.toJson();
+          if (ev is Map) return Map<String, dynamic>.from(ev);
+          return ev;
+        }).toList();
+      }
+
+      return {
+        'name': section['name'],
+        'icon': section['icon'],
+        'events': eventsJson,
+      };
+    }).toList();
+
+    await LocalStorageService.saveSections(serializable);
   }
 
   /// Add space dialog
@@ -179,14 +219,20 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SpaceDetailPage(
-                      spaceName: section["name"],
-                      events: (section["events"] ?? [])
-                          .map<EventModel>((e) =>
-                              EventModel.fromJson(
-                                  Map<String, dynamic>.from(e)))
-                          .toList(),
-                    ),
+                    builder: (_) {
+                      final rawEvents = section['events'];
+                      final eventsList = (rawEvents is List)
+                          ? rawEvents
+                              .map<EventModel>((e) =>
+                                  EventModel.fromJson(Map<String, dynamic>.from(e)))
+                              .toList()
+                          : <EventModel>[];
+
+                      return SpaceDetailPage(
+                        spaceName: section['name'],
+                        events: eventsList,
+                      );
+                    },
                   ),
                 );
               },

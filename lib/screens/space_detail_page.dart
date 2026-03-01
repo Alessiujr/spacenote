@@ -29,7 +29,11 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     final titleController = TextEditingController();
 
     DateTime selectedDate = DateTime.now();
-    String recurrence = "none";
+    String freq = "none";
+    String monthlyMode = 'day';
+    int dayOfMonth = selectedDate.day;
+    int nth = 1; // for nth_weekday
+    int nthWeekday = DateTime.monday;
 
     showDialog(
       context: context,
@@ -71,33 +75,92 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                   const SizedBox(height: 10),
 
                   DropdownButton<String>(
-                    value: recurrence,
+                    value: freq,
                     items: const [
-                      DropdownMenuItem(
-                        value: "none",
-                        child: Text("No recurrence"),
-                      ),
-                      DropdownMenuItem(
-                        value: "daily",
-                        child: Text("Daily"),
-                      ),
-                      DropdownMenuItem(
-                        value: "monthly",
-                        child: Text("Monthly"),
-                      ),
-                      DropdownMenuItem(
-                        value: "yearly",
-                        child: Text("Yearly"),
-                      ),
+                      DropdownMenuItem(value: "none", child: Text("No recurrence")),
+                      DropdownMenuItem(value: "daily", child: Text("Daily")),
+                      DropdownMenuItem(value: "weekly", child: Text("Weekly")),
+                      DropdownMenuItem(value: "monthly", child: Text("Monthly")),
+                      DropdownMenuItem(value: "yearly", child: Text("Yearly")),
                     ],
                     onChanged: (v) {
                       if (v != null) {
                         setDialogState(() {
-                          recurrence = v;
+                          freq = v;
                         });
                       }
                     },
                   ),
+
+                  const SizedBox(height: 8),
+
+                  // Advanced monthly options
+                  if (freq == 'monthly') ...[
+                    const Text('Monthly options:'),
+                    const SizedBox(height: 6),
+                    DropdownButton<String>(
+                      value: monthlyMode,
+                      items: const [
+                        DropdownMenuItem(value: 'day', child: Text('Day of month')),
+                        DropdownMenuItem(value: 'first_business_day', child: Text('First business day')),
+                        DropdownMenuItem(value: 'last_business_day', child: Text('Last business day')),
+                        DropdownMenuItem(value: 'nth_weekday', child: Text('Nth weekday (e.g. 1st Monday)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() {
+                            monthlyMode = v;
+                          });
+                        }
+                      },
+                    ),
+
+                    if (monthlyMode == 'day') ...[
+                      const SizedBox(height: 6),
+                      TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(labelText: 'Day of month', hintText: '$dayOfMonth'),
+                        onChanged: (val) {
+                          final parsed = int.tryParse(val);
+                          if (parsed != null && parsed >= 1 && parsed <= 31) {
+                            dayOfMonth = parsed;
+                          }
+                        },
+                      ),
+                    ],
+
+                    if (monthlyMode == 'nth_weekday') ...[
+                      const SizedBox(height: 6),
+                      DropdownButton<int>(
+                        value: nth,
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('1st')),
+                          DropdownMenuItem(value: 2, child: Text('2nd')),
+                          DropdownMenuItem(value: 3, child: Text('3rd')),
+                          DropdownMenuItem(value: 4, child: Text('4th')),
+                          DropdownMenuItem(value: -1, child: Text('Last')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setDialogState(() => nth = v);
+                        },
+                      ),
+                      DropdownButton<int>(
+                        value: nthWeekday,
+                        items: const [
+                          DropdownMenuItem(value: DateTime.monday, child: Text('Mon')),
+                          DropdownMenuItem(value: DateTime.tuesday, child: Text('Tue')),
+                          DropdownMenuItem(value: DateTime.wednesday, child: Text('Wed')),
+                          DropdownMenuItem(value: DateTime.thursday, child: Text('Thu')),
+                          DropdownMenuItem(value: DateTime.friday, child: Text('Fri')),
+                          DropdownMenuItem(value: DateTime.saturday, child: Text('Sat')),
+                          DropdownMenuItem(value: DateTime.sunday, child: Text('Sun')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setDialogState(() => nthWeekday = v);
+                        },
+                      ),
+                    ],
+                  ],
                 ],
               ),
               actions: [
@@ -109,13 +172,34 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                   onPressed: () {
                     if (titleController.text.isEmpty) return;
 
+                    // build recurrence rule
+                    RecurrenceRule rr;
+                    if (freq == 'none') {
+                      rr = RecurrenceRule.none();
+                    } else if (freq == 'monthly') {
+                      MonthlyRule mr;
+                      if (monthlyMode == 'day') {
+                        mr = MonthlyRule(mode: 'day', dayOfMonth: dayOfMonth);
+                      } else if (monthlyMode == 'first_business_day') {
+                        mr = MonthlyRule(mode: 'first_business_day');
+                      } else if (monthlyMode == 'last_business_day') {
+                        mr = MonthlyRule(mode: 'last_business_day');
+                      } else {
+                        mr = MonthlyRule(mode: 'nth_weekday', nth: nth, weekday: nthWeekday);
+                      }
+
+                      rr = RecurrenceRule(frequency: 'monthly', monthlyRule: mr);
+                    } else {
+                      rr = RecurrenceRule(frequency: freq);
+                    }
+
                     setState(() {
                       events.add(
                         EventModel(
                           id: DateTime.now().millisecondsSinceEpoch.toString(),
                           title: titleController.text,
                           date: selectedDate,
-                          recurrence: recurrence,
+                          recurrence: rr,
                         ),
                       );
                     });
@@ -162,7 +246,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                   color: daysLeft < 0 ? Colors.red : Colors.green),
             ),
 
-            trailing: Text(event.recurrence),
+            trailing: Text(event.recurrence.toReadableString()),
           ),
         );
       },
