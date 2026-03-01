@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/utils/date_utils.dart';
 import '../services/local_storage_service.dart';
@@ -22,16 +23,24 @@ class _HomePageState extends State<HomePage> {
 
   String selectedSection = "Spacenote";
 
-  final List<String> availableIcons = [
-    "🏠",
-    "🚗",
-    "🛵",
-    "📂",
-    "✈️",
-    "💡",
-    "📌",
-    "🧾"
-  ];
+  final Map<String, List<String>> iconCategories = {
+    'All': [
+      '🏠','🏡','🏢','🏬','🏛️','🛋️','🛏️','🧸','🪑','🖼️',
+      '🚗','🚕','🚙','🚌','🚲','🏍️','✈️','🚀','🚢',
+      '💡','🔌','🔧','🔨','🧰','🧹','🧺','🧻','🛒','📦',
+      '📚','📁','📂','📌','📎','🖇️','📅','🗓️','🧾','💳',
+      '💰','📷','📱','💻','⌚','🎧','🎮','🎨','🎸','🏀',
+      '🍽️','☕','🍎','🥦','🏥','💊','🔒','🔑','🛠️','🪄'
+    ],
+    'Casa': ['🏠','🏡','🏢','🛋️','🛏️','🧸','🪑','🖼️'],
+    'Trasporti': ['🚗','🚕','🚙','🚌','🚲','🏍️','✈️','🚀','🚢'],
+    'Elettronica': ['📷','📱','💻','⌚','🎧','🎮'],
+    'Ufficio': ['📚','📁','📂','📌','📎','🖇️','📅','🗓️'],
+    'Casa & Servizi': ['💡','🔌','🔧','🔨','🧰','🧹','🧺','🧻'],
+    'Spesa & Cibo': ['🍽️','☕','🍎','🥦','🛒','📦'],
+    'Finanza': ['💳','💰'],
+    'Altro': ['🏀','🎨','🎸','🪄','🔒','🔑','💊']
+  };
 
   @override
   void initState() {
@@ -108,87 +117,122 @@ class _HomePageState extends State<HomePage> {
   /// Add space dialog
   void _showAddSectionDialog() {
     final nameController = TextEditingController();
-    String selectedIcon = availableIcons.first;
+    final categories = iconCategories.keys.toList();
+    String selectedCategory = categories.first;
+    String selectedIcon = iconCategories[selectedCategory]!.first;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Add Space"),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration:
-                        const InputDecoration(labelText: "Space name"),
+            return Center(
+              child: SizedBox(
+                width: min(600, MediaQuery.of(context).size.width * 0.9),
+                child: AlertDialog(
+                  title: const Text("Add Space"),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(height: 20),
-
-                  Wrap(
-                    spacing: 10,
-                    children: availableIcons.map((icon) {
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            selectedIcon = icon;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: selectedIcon == icon
-                                  ? Colors.deepPurple
-                                  : Colors.grey,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(icon,
-                              style: const TextStyle(fontSize: 20)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.isEmpty) return;
-
-                    setState(() {
-                      sections.add({
-                        "name": nameController.text,
-                        "icon": selectedIcon,
-                        "events": [],
-                      });
-
-                      selectedSection = nameController.text;
-                    });
-
-                    await _saveSections();
-
-                    Navigator.pop(context);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("✨ Space Created"),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration:
+                            const InputDecoration(labelText: "Space name"),
                       ),
-                    );
-                  },
-                  child: const Text("Save"),
+                      const SizedBox(height: 20),
+
+                      // category selector
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: categories.map((cat) {
+                            final isSel = selectedCategory == cat;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                              child: ChoiceChip(
+                                label: Text(cat),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setDialogState(() {
+                                    selectedCategory = cat;
+                                    // reset selected icon to first of category
+                                    selectedIcon = iconCategories[selectedCategory]!.first;
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      SizedBox(
+                        height: 200,
+                        child: GridView.count(
+                          crossAxisCount: 6,
+                          childAspectRatio: 1,
+                          padding: const EdgeInsets.all(6),
+                          shrinkWrap: true,
+                          children: iconCategories[selectedCategory]!.map((icon) {
+                            final selected = selectedIcon == icon;
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  selectedIcon = icon;
+                                });
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: selected ? Colors.deepPurple : Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.isEmpty) return;
+
+                        setState(() {
+                          sections.add({
+                            "name": nameController.text,
+                            "icon": selectedIcon,
+                            "events": [],
+                          });
+
+                          selectedSection = nameController.text;
+                        });
+
+                        await _saveSections();
+
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("✨ Space Created"),
+                          ),
+                        );
+                      },
+                      child: const Text("Save"),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );
@@ -416,7 +460,6 @@ class _HomePageState extends State<HomePage> {
                               await _saveSections();
                             },
                           );
-                          
                         },
                       ),
                     );
@@ -521,29 +564,32 @@ class _HomePageState extends State<HomePage> {
                 showDialog(
                   context: context,
                   builder: (context) {
-                    return AlertDialog(
-                      title: Text('Scadenze del ${date.day}/${date.month}/${date.year}'),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: matches.isEmpty
-                              ? [const Text('Nessuna scadenza')]
-                              : matches.map((m) {
-                                  final ev = m['event'] as EventModel;
-                                  return ListTile(
-                                    leading: Text(m['icon'] ?? '📌'),
-                                    title: Text(m['title'] ?? ''),
-                                    subtitle: Text(m['space'] ?? ''),
-                                    trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : null,
-                                  );
-                                }).toList(),
+                    return Center(
+                      child: SizedBox(
+                        width: min(600, MediaQuery.of(context).size.width * 0.9),
+                        child: AlertDialog(
+                          title: Text('Scadenze del ${date.day}/${date.month}/${date.year}'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: matches.isEmpty
+                                  ? [const Text('Nessuna scadenza')]
+                                  : matches.map((m) {
+                                      final ev = m['event'] as EventModel;
+                                      return ListTile(
+                                        leading: Text(m['icon'] ?? '📌'),
+                                        title: Text(m['title'] ?? ''),
+                                        subtitle: Text(m['space'] ?? ''),
+                                        trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : null,
+                                      );
+                                    }).toList(),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi'))
+                          ],
                         ),
                       ),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Chiudi'))
-                      ],
                     );
                   },
                 );
