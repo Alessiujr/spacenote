@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'settings_page.dart';
 import '../core/utils/date_utils.dart';
 import '../services/local_storage_service.dart';
 import 'space_detail_page.dart';
@@ -17,6 +18,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> sections = [
     
   ];
+  Map<String, dynamic> settings = {};
 
   late int _displayMonth;
   late int _displayYear;
@@ -46,9 +48,24 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadSections();
+    _loadSettings();
     final now = DateTime.now();
     _displayMonth = now.month;
     _displayYear = now.year;
+  }
+
+  Future<void> _loadSettings() async {
+    final s = await LocalStorageService.loadSettings();
+    setState(() {
+      settings = s ?? {
+        'firstDayOfWeek': DateTime.monday,
+        'dateFormat': 'dd/MM/yyyy',
+        'currency': '€',
+        'notifications': false,
+        'defaultReminderDays': 1,
+        'defaultHome': 'home',
+      };
+    });
   }
 
   /// Load storage
@@ -364,6 +381,15 @@ class _HomePageState extends State<HomePage> {
               _showAddSectionDialog();
             },
           ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Impostazioni'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+            },
+          ),
         ],
       ),
     );
@@ -421,14 +447,14 @@ class _HomePageState extends State<HomePage> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${item['space']} • Next: ${next.day}/${next.month}/${next.year}'),
+                      Text('${item['space']} • Next: ${_formatDate(next)}'),
                       const SizedBox(height: 4),
                       Text(ev.recurrence.toReadableString()),
                       const SizedBox(height: 6),
                       Text(daysLeft >= 0 ? '⏳ ${DateUtilsHelper.formatRemaining(next)}' : '⚠️ Scaduto', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
                     ],
                   ),
-                  trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),
+                      trailing: ev.cost != null ? Text((settings['currency'] ?? '€') + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),
                   onTap: () {
                     // open space detail for this event's space
                     Navigator.push(
@@ -477,6 +503,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  String _formatDate(DateTime dt) {
+    final fmt = settings['dateFormat'] ?? 'dd/MM/yyyy';
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final y = dt.year.toString();
+    if (fmt == 'MM/dd/yyyy') return '$m/$d/$y';
+    return '$d/$m/$y';
+  }
+
   Widget _buildCalendar(List<Map<String, dynamic>> upcoming) {
     int year = _displayYear;
     int month = _displayMonth;
@@ -512,16 +547,30 @@ class _HomePageState extends State<HomePage> {
 
     final firstWeekday = DateTime(year, month, 1).weekday; // 1..7
 
-    // weekday headers
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    // weekday headers (respect settings first day)
+    final int firstDaySetting = settings['firstDayOfWeek'] ?? DateTime.monday; // 1..7
+    final baseWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    List<String> weekdays;
+    if (firstDaySetting == DateTime.monday) {
+      weekdays = baseWeekdays;
+    } else {
+      // Sunday first
+      weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    }
 
     int day = 1;
     // rows
     List<TableRow> rows = [];
     List<Widget> currentRow = [];
 
-    // fill initial empty slots (firstWeekday: Monday=1)
-    int leadingEmpty = firstWeekday - 1;
+    // fill initial empty slots based on settings
+    int leadingEmpty;
+    if (firstDaySetting == DateTime.monday) {
+      leadingEmpty = firstWeekday - 1; // Monday=1 -> 0 empty
+    } else {
+      // Sunday first: DateTime.weekday Sunday==7 -> leadingEmpty should be 0 when firstWeekday==7
+      leadingEmpty = firstWeekday % 7; // Sunday(7)%7 ==0
+    }
     for (int i = 0; i < leadingEmpty; i++) {
       currentRow.add(Container());
     }
@@ -568,7 +617,7 @@ class _HomePageState extends State<HomePage> {
                       child: SizedBox(
                         width: min(600, MediaQuery.of(context).size.width * 0.9),
                         child: AlertDialog(
-                          title: Text('Scadenze del ${date.day}/${date.month}/${date.year}'),
+                          title: Text('Scadenze del ${_formatDate(date)}'),
                           content: SingleChildScrollView(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -580,7 +629,7 @@ class _HomePageState extends State<HomePage> {
                                         leading: Text(m['icon'] ?? '📌'),
                                         title: Text(m['title'] ?? ''),
                                         subtitle: Text(m['space'] ?? ''),
-                                        trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : null,
+                                        trailing: ev.cost != null ? Text((settings['currency'] ?? '€') + ev.cost!.toStringAsFixed(2)) : null,
                                       );
                                     }).toList(),
                             ),
