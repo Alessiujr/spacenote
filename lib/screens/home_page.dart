@@ -368,7 +368,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 4),
                       Text(ev.recurrence.toReadableString()),
                       const SizedBox(height: 6),
-                      Text(daysLeft >= 0 ? '⏳ $daysLeft days remaining' : '⚠️ Expired', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
+                      Text(daysLeft >= 0 ? '⏳ ${DateUtilsHelper.formatRemaining(next)}' : '⚠️ Scaduto', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
                     ],
                   ),
                   trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),

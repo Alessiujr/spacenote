@@ -7,6 +7,56 @@ class DateUtilsHelper {
     return targetDate.difference(now).inDays;
   }
 
+  static String formatRemaining(DateTime targetDate) {
+    final now = DateTime.now();
+    if (targetDate.isBefore(now)) return 'Scaduto';
+
+    int y1 = now.year;
+    int m1 = now.month;
+    int d1 = now.day;
+
+    int y2 = targetDate.year;
+    int m2 = targetDate.month;
+    int d2 = targetDate.day;
+
+    int years = y2 - y1;
+    int months = m2 - m1;
+    int days = d2 - d1;
+
+    if (days < 0) {
+      // borrow from previous month of targetDate
+      int prevMonth = m2 - 1;
+      int prevYear = y2;
+      if (prevMonth < 1) {
+        prevMonth = 12;
+        prevYear -= 1;
+      }
+      days += _daysInMonth(prevYear, prevMonth);
+      months -= 1;
+    }
+
+    if (months < 0) {
+      months += 12;
+      years -= 1;
+    }
+
+    if (years >= 1) {
+      final yStr = years == 1 ? '1 anno' : '$years anni';
+      final mStr = months > 0 ? (months == 1 ? ' 1 mese' : ' $months mesi') : '';
+      final dStr = days > 0 ? (days == 1 ? ' 1 giorno' : ' $days giorni') : '';
+      return '$yStr$mStr$dStr'.trim();
+    }
+
+    if (months >= 1) {
+      final mStr = months == 1 ? '1 mese' : '$months mesi';
+      final dStr = days > 0 ? (days == 1 ? ' 1 giorno' : ' $days giorni') : '';
+      return '$mStr$dStr'.trim();
+    }
+
+    final totalDays = targetDate.difference(now).inDays;
+    return totalDays == 1 ? '1 giorno' : '$totalDays giorni';
+  }
+
   static int _daysInMonth(int year, int month) {
     final nextMonth = month == 12 ? DateTime(year + 1, 1, 1) : DateTime(year, month + 1, 1);
     return nextMonth.subtract(const Duration(days: 1)).day;

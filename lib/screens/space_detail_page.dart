@@ -35,6 +35,22 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     super.initState();
     events = List.from(widget.events);
     _imagePath = widget.imagePath;
+    try {
+      if (_imagePath != null && !_imagePath!.isEmpty) {
+        final f = File(_imagePath!);
+        if (!f.existsSync()) {
+          _imagePath = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onImageChanged?.call(null);
+          });
+        }
+      }
+    } catch (_) {
+      _imagePath = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onImageChanged?.call(null);
+      });
+    }
   }
 
   String? _imagePath;
@@ -483,7 +499,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                 Text(event.recurrence.toReadableString()),
                 const SizedBox(height: 6),
                 Text(
-                  daysLeft >= 0 ? "⏳ $daysLeft days remaining" : "⚠️ Expired",
+                  daysLeft >= 0 ? "⏳ ${DateUtilsHelper.formatRemaining(nextDate)}" : "⚠️ Scaduto",
                   style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green),
                 ),
               ],
@@ -508,25 +524,28 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
       body: Column(
         children: [
           // image header
-          if (_imagePath != null)
-            Stack(
-              children: [
-                Image.file(File(_imagePath!), width: double.infinity, height: 200, fit: BoxFit.cover),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Row(
-                    children: [
-                      IconButton(onPressed: () => _pickAndSaveImage(ImageSource.camera), icon: const Icon(Icons.camera_alt, color: Colors.white)),
-                      IconButton(onPressed: () => _pickAndSaveImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, color: Colors.white)),
-                      IconButton(onPressed: _removeImage, icon: const Icon(Icons.delete, color: Colors.white)),
-                    ],
+          () {
+            final hasImage = _imagePath != null && _imagePath!.isNotEmpty && File(_imagePath!).existsSync();
+            if (hasImage) {
+              return Stack(
+                children: [
+                  Image.file(File(_imagePath!), width: double.infinity, height: 200, fit: BoxFit.cover),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Row(
+                      children: [
+                        IconButton(onPressed: () => _pickAndSaveImage(ImageSource.camera), icon: const Icon(Icons.camera_alt, color: Colors.white)),
+                        IconButton(onPressed: () => _pickAndSaveImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, color: Colors.white)),
+                        IconButton(onPressed: _removeImage, icon: const Icon(Icons.delete, color: Colors.white)),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            )
-          else
-            Container(
+                ],
+              );
+            }
+
+            return Container(
               width: double.infinity,
               height: 160,
               color: Colors.grey[200],
@@ -547,7 +566,8 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                   label: const Text('Add image'),
                 ),
               ),
-            ),
+            );
+          }(),
 
           Expanded(child: _buildEventList()),
         ],
