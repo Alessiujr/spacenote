@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../core/utils/date_utils.dart';
 import '../services/local_storage_service.dart';
 import 'space_detail_page.dart';
 import '../models/event_model.dart';
@@ -13,11 +14,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> sections = [
-    {
-      "name": "Home",
-      "icon": "🏠",
-      "events": [],
-    }
+    
   ];
 
   String selectedSection = "Home";
@@ -69,7 +66,7 @@ class _HomePageState extends State<HomePage> {
           };
         }).toList();
 
-        selectedSection = sections.first['name'];
+        selectedSection = sections.isNotEmpty ? sections.first['name'] : '';
       });
     }
   }
@@ -103,7 +100,6 @@ class _HomePageState extends State<HomePage> {
   void _showAddSectionDialog() {
     final nameController = TextEditingController();
     String selectedIcon = availableIcons.first;
-    String costInput = '';
 
     showDialog(
       context: context,
@@ -122,12 +118,6 @@ class _HomePageState extends State<HomePage> {
                     controller: nameController,
                     decoration:
                         const InputDecoration(labelText: "Space name"),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Optional cost', hintText: 'e.g. 12.50'),
-                    onChanged: (v) => costInput = v,
                   ),
                   const SizedBox(height: 20),
 
@@ -168,11 +158,6 @@ class _HomePageState extends State<HomePage> {
                     if (nameController.text.isEmpty) return;
 
                     setState(() {
-                      double? parsedCost;
-                      if (costInput.trim().isNotEmpty) {
-                        parsedCost = double.tryParse(costInput.replaceAll(',', '.'));
-                      }
-
                       sections.add({
                         "name": nameController.text,
                         "icon": selectedIcon,
@@ -261,8 +246,6 @@ class _HomePageState extends State<HomePage> {
               },
 
               onLongPress: () async {
-                if (section["name"] == "Home") return;
-
                 await showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -313,10 +296,90 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBody() {
-    return const Center(
-      child: Text(
-        "Select a Space from drawer",
-      ),
+    // Gather all events from sections, compute next occurrence and sort
+    final List<Map<String, dynamic>> upcoming = [];
+
+    for (final section in sections) {
+      final sectionName = section['name'] ?? '';
+      final sectionIcon = section['icon'] ?? '📌';
+      final rawEvents = section['events'];
+
+      if (rawEvents is List) {
+        for (final e in rawEvents) {
+          try {
+            final ev = e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e));
+            final next = DateUtilsHelper.nextOccurrence(ev.date, ev.recurrence);
+            upcoming.add({
+              'space': sectionName,
+              'icon': sectionIcon,
+              'event': ev,
+              'nextDate': next,
+              'daysLeft': DateUtilsHelper.daysRemaining(next),
+            });
+          } catch (_) {
+            // ignore malformed events
+          }
+        }
+      }
+    }
+
+    upcoming.sort((a, b) => (a['nextDate'] as DateTime).compareTo(b['nextDate'] as DateTime));
+
+    if (upcoming.isEmpty) {
+      return const Center(child: Text("No upcoming deadlines"));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: upcoming.length,
+      itemBuilder: (context, index) {
+        final item = upcoming[index];
+        final EventModel ev = item['event'];
+        final DateTime next = item['nextDate'];
+        final int daysLeft = item['daysLeft'];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Text(item['icon'], style: const TextStyle(fontSize: 22)),
+            title: Text(ev.title),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${item['space']} • Next: ${next.day}/${next.month}/${next.year}'),
+                const SizedBox(height: 4),
+                Text(ev.recurrence.toReadableString()),
+                const SizedBox(height: 6),
+                Text(daysLeft >= 0 ? '⏳ $daysLeft days remaining' : '⚠️ Expired', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
+              ],
+            ),
+            trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),
+            onTap: () {
+              // open space detail for this event's space
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) {
+                    // build events list for the target space
+                    final targetSection = sections.firstWhere((s) => s['name'] == item['space'], orElse: () => <String, dynamic>{});
+                    final raw = (targetSection is Map && targetSection.isNotEmpty) ? targetSection['events'] : [];
+                    final eventsList = (raw is List) ? raw.map<EventModel>((e) => e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e))).toList() : <EventModel>[];
+
+                    return SpaceDetailPage(spaceName: item['space'], events: eventsList, onEventsChanged: (updated) async {
+                      setState(() {
+                        final idx = sections.indexWhere((s) => s['name'] == item['space']);
+                        if (idx != -1) sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
+                      });
+                      await _saveSections();
+                    });
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
