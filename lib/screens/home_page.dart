@@ -243,6 +243,17 @@ class _HomePageState extends State<HomePage> {
                       return SpaceDetailPage(
                         spaceName: section['name'],
                         events: eventsList,
+                        onEventsChanged: (updated) async {
+                          // persist updated events back into sections and save
+                          setState(() {
+                            final idx = sections.indexWhere((s) => s['name'] == section['name']);
+                            if (idx != -1) {
+                              sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
+                            }
+                          });
+
+                          await _saveSections();
+                        },
                       );
                     },
                   ),

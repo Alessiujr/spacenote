@@ -5,11 +5,13 @@ import '../core/utils/date_utils.dart';
 class SpaceDetailPage extends StatefulWidget {
   final String spaceName;
   final List<EventModel> events;
+  final ValueChanged<List<EventModel>>? onEventsChanged;
 
   const SpaceDetailPage({
     super.key,
     required this.spaceName,
     required this.events,
+    this.onEventsChanged,
   });
 
   @override
@@ -234,6 +236,9 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                           cost: parsedCost,
                         ),
                       );
+
+                      // notify parent to persist
+                      widget.onEventsChanged?.call(events);
                     });
 
                     Navigator.pop(context);
