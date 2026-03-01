@@ -104,6 +104,28 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
 
+          ListTile(
+            title: const Text('Tema'),
+            subtitle: Text((_settings['themeMode'] ?? 'system').toString()),
+            onTap: () async {
+              final chosen = await showDialog<String>(
+                context: context,
+                builder: (c) => SimpleDialog(
+                  title: const Text('Tema'),
+                  children: [
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'system'), child: const Text('System')),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'light'), child: const Text('Light')),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'dark'), child: const Text('Dark')),
+                  ],
+                ),
+              );
+              if (chosen != null) {
+                setState(() => _settings['themeMode'] = chosen);
+                _save();
+              }
+            },
+          ),
+
           SwitchListTile(
             title: const Text('Notifiche (promemoria)'),
             value: _settings['notifications'] ?? false,

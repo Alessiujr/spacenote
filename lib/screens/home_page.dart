@@ -385,9 +385,10 @@ class _HomePageState extends State<HomePage> {
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('Impostazioni'),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+              await _loadSettings();
             },
           ),
         ],
@@ -708,7 +709,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: _buildDrawer(),
 
       appBar: AppBar(

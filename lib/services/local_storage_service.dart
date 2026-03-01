@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService {
@@ -27,6 +28,10 @@ class LocalStorageService {
   static Future<void> saveSettings(Map<String, dynamic> settings) async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString(settingsKey, jsonEncode(settings));
+    // notify listeners
+    try {
+      settingsNotifier.value = Map<String, dynamic>.from(settings);
+    } catch (_) {}
   }
 
   static Future<Map<String, dynamic>?> loadSettings() async {
@@ -35,9 +40,15 @@ class LocalStorageService {
     if (raw == null) return null;
     try {
       final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        settingsNotifier.value = Map<String, dynamic>.from(decoded);
+      }
       return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
     } catch (_) {
       return null;
     }
   }
+
+  // Notifier to allow app to react to settings changes (e.g., theme)
+  static final ValueNotifier<Map<String, dynamic>?> settingsNotifier = ValueNotifier(null);
 }
