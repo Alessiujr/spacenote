@@ -17,6 +17,9 @@ class _HomePageState extends State<HomePage> {
     
   ];
 
+  late int _displayMonth;
+  late int _displayYear;
+
   String selectedSection = "Home";
 
   final List<String> availableIcons = [
@@ -34,6 +37,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadSections();
+    final now = DateTime.now();
+    _displayMonth = now.month;
+    _displayYear = now.year;
   }
 
   /// Load storage
@@ -325,62 +331,170 @@ class _HomePageState extends State<HomePage> {
 
     upcoming.sort((a, b) => (a['nextDate'] as DateTime).compareTo(b['nextDate'] as DateTime));
 
-    if (upcoming.isEmpty) {
-      return const Center(child: Text("No upcoming deadlines"));
-    }
+    Widget calendar = _buildCalendar(upcoming);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: upcoming.length,
-      itemBuilder: (context, index) {
-        final item = upcoming[index];
-        final EventModel ev = item['event'];
-        final DateTime next = item['nextDate'];
-        final int daysLeft = item['daysLeft'];
+    Widget list = upcoming.isEmpty
+        ? const Center(child: Text("No upcoming deadlines"))
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: upcoming.length,
+            itemBuilder: (context, index) {
+              final item = upcoming[index];
+              final EventModel ev = item['event'];
+              final DateTime next = item['nextDate'];
+              final int daysLeft = item['daysLeft'];
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: Text(item['icon'], style: const TextStyle(fontSize: 22)),
-            title: Text(ev.title),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${item['space']} • Next: ${next.day}/${next.month}/${next.year}'),
-                const SizedBox(height: 4),
-                Text(ev.recurrence.toReadableString()),
-                const SizedBox(height: 6),
-                Text(daysLeft >= 0 ? '⏳ $daysLeft days remaining' : '⚠️ Expired', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
-              ],
-            ),
-            trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),
-            onTap: () {
-              // open space detail for this event's space
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) {
-                    // build events list for the target space
-                    final targetSection = sections.firstWhere((s) => s['name'] == item['space'], orElse: () => <String, dynamic>{});
-                    final raw = (targetSection is Map && targetSection.isNotEmpty) ? targetSection['events'] : [];
-                    final eventsList = (raw is List) ? raw.map<EventModel>((e) => e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e))).toList() : <EventModel>[];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: Text(item['icon'], style: const TextStyle(fontSize: 22)),
+                  title: Text(ev.title),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${item['space']} • Next: ${next.day}/${next.month}/${next.year}'),
+                      const SizedBox(height: 4),
+                      Text(ev.recurrence.toReadableString()),
+                      const SizedBox(height: 6),
+                      Text(daysLeft >= 0 ? '⏳ $daysLeft days remaining' : '⚠️ Expired', style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green)),
+                    ],
+                  ),
+                  trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : const Icon(Icons.chevron_right),
+                  onTap: () {
+                    // open space detail for this event's space
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) {
+                          // build events list for the target space
+                          final targetSection = sections.firstWhere((s) => s['name'] == item['space'], orElse: () => <String, dynamic>{});
+                          final raw = (targetSection is Map && targetSection.isNotEmpty) ? targetSection['events'] : [];
+                          final eventsList = (raw is List) ? raw.map<EventModel>((e) => e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e))).toList() : <EventModel>[];
 
-                    return SpaceDetailPage(spaceName: item['space'], events: eventsList, onEventsChanged: (updated) async {
-                      setState(() {
-                        final idx = sections.indexWhere((s) => s['name'] == item['space']);
-                        if (idx != -1) sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
-                      });
-                      await _saveSections();
-                    });
+                          return SpaceDetailPage(spaceName: item['space'], events: eventsList, onEventsChanged: (updated) async {
+                            setState(() {
+                              final idx = sections.indexWhere((s) => s['name'] == item['space']);
+                              if (idx != -1) sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
+                            });
+                            await _saveSections();
+                          });
+                        },
+                      ),
+                    );
                   },
                 ),
               );
             },
-          ),
-        );
-      },
+          );
+
+    return Column(
+      children: [
+        calendar,
+        Expanded(child: list),
+      ],
     );
+  }
+
+  Widget _buildCalendar(List<Map<String, dynamic>> upcoming) {
+    // build a set of dates that have events (year-month-day string)
+    final Set<String> daysWithEvents = {};
+    for (final it in upcoming) {
+      final DateTime d = it['nextDate'];
+      daysWithEvents.add('${d.year}-${d.month}-${d.day}');
+    }
+
+    int year = _displayYear;
+    int month = _displayMonth;
+
+    int daysInMonth(int y, int m) {
+      final next = m == 12 ? DateTime(y + 1, 1, 1) : DateTime(y, m + 1, 1);
+      return next.subtract(const Duration(days: 1)).day;
+    }
+
+    final firstWeekday = DateTime(year, month, 1).weekday; // 1..7
+    final totalDays = daysInMonth(year, month);
+
+    // weekday headers
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    int day = 1;
+    // rows
+    List<TableRow> rows = [];
+    List<Widget> currentRow = [];
+
+    // fill initial empty slots (firstWeekday: Monday=1)
+    int leadingEmpty = firstWeekday - 1;
+    for (int i = 0; i < leadingEmpty; i++) {
+      currentRow.add(Container());
+    }
+
+    while (day <= totalDays) {
+      final key = '$year-$month-$day';
+      final has = daysWithEvents.contains(key);
+      final cell = GestureDetector(
+        onTap: has
+            ? () {
+                // TODO: navigate to event(s) on this date
+              }
+            : null,
+        child: Container(
+          margin: const EdgeInsets.all(4),
+          height: 48,
+          decoration: has
+              ? BoxDecoration(color: Colors.deepPurple.withOpacity(0.12), borderRadius: BorderRadius.circular(8))
+              : null,
+          child: Center(
+            child: has
+                ? Column(mainAxisSize: MainAxisSize.min, children: [Text('$day', style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 2), const Icon(Icons.circle, size: 8, color: Colors.deepPurple)])
+                : Text('$day'),
+          ),
+        ),
+      );
+
+      currentRow.add(cell);
+
+      if (currentRow.length == 7) {
+        rows.add(TableRow(children: currentRow));
+        currentRow = [];
+      }
+
+      day++;
+    }
+
+    // fill trailing empty
+    if (currentRow.isNotEmpty) {
+      while (currentRow.length < 7) {
+        currentRow.add(Container());
+      }
+      rows.add(TableRow(children: currentRow));
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(onPressed: () { setState(() { if (_displayMonth==1) { _displayMonth=12; _displayYear--; } else _displayMonth--; }); }, icon: const Icon(Icons.chevron_left)),
+              Text('${monthName(month)} $year', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: () { setState(() { if (_displayMonth==12) { _displayMonth=1; _displayYear++; } else _displayMonth++; }); }, icon: const Icon(Icons.chevron_right)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // weekday header
+          Row(children: weekdays.map((d) => Expanded(child: Center(child: Text(d, style: const TextStyle(fontWeight: FontWeight.bold))))).toList()),
+          const SizedBox(height: 6),
+          Table(children: rows),
+        ],
+      ),
+    );
+  }
+
+  String monthName(int m) {
+    const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return names[m-1];
   }
 
   @override
