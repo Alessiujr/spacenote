@@ -20,7 +20,7 @@ class _HomePageState extends State<HomePage> {
   late int _displayMonth;
   late int _displayYear;
 
-  String selectedSection = "Home";
+  String selectedSection = "Spacenote";
 
   final List<String> availableIcons = [
     "🏠",
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> {
           };
         }).toList();
 
-        selectedSection = sections.isNotEmpty ? sections.first['name'] : '';
+        selectedSection = sections.isNotEmpty ? sections.first['name'] : 'Spacenote';
       });
     }
   }
@@ -208,6 +208,19 @@ class _HomePageState extends State<HomePage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          ListTile(
+            selected: selectedSection == 'Spacenote',
+            selectedTileColor: Colors.deepPurple.withOpacity(0.1),
+            leading: const Text('🏠'),
+            title: const Text('Spacenote'),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() {
+                selectedSection = 'Spacenote';
+              });
+            },
+          ),
+          const Divider(),
           ...sections.map((section) {
             return ListTile(
                     selected: selectedSection == section["name"],
@@ -454,9 +467,11 @@ class _HomePageState extends State<HomePage> {
       currentRow.add(Container());
     }
 
+    final today = DateTime.now();
     while (day <= totalDays) {
       final key = '$year-$month-$day';
       final has = daysWithEvents.contains(key);
+      final isToday = (year == today.year && month == today.month && day == today.day);
       final cell = GestureDetector(
         onTap: has
             ? () {
@@ -466,13 +481,15 @@ class _HomePageState extends State<HomePage> {
         child: Container(
           margin: const EdgeInsets.all(4),
           height: 48,
-          decoration: has
-              ? BoxDecoration(color: Colors.deepPurple.withOpacity(0.12), borderRadius: BorderRadius.circular(8))
-              : null,
+          decoration: isToday
+              ? BoxDecoration(border: Border.all(color: Colors.red, width: 1.8), borderRadius: BorderRadius.circular(8))
+              : has
+                  ? BoxDecoration(color: Colors.deepPurple.withOpacity(0.12), borderRadius: BorderRadius.circular(8))
+                  : null,
           child: Center(
             child: has
-                ? Column(mainAxisSize: MainAxisSize.min, children: [Text('$day', style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 2), const Icon(Icons.circle, size: 8, color: Colors.deepPurple)])
-                : Text('$day'),
+                ? Column(mainAxisSize: MainAxisSize.min, children: [Text('$day', style: TextStyle(fontWeight: FontWeight.bold, color: isToday ? Colors.red : null)), const SizedBox(height: 2), const Icon(Icons.circle, size: 8, color: Colors.deepPurple)])
+                : Text('$day', style: TextStyle(color: isToday ? Colors.red : null)),
           ),
         ),
       );
