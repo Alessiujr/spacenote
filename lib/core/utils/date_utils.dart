@@ -170,6 +170,65 @@ class DateUtilsHelper {
     return baseDate;
   }
 
+  static bool occursOn(DateTime date, DateTime baseDate, RecurrenceRule rule) {
+    final d = DateTime(date.year, date.month, date.day);
+    final b = DateTime(baseDate.year, baseDate.month, baseDate.day);
+
+    if (rule.frequency == 'none') return d == b;
+    if (d.isBefore(b)) return false;
+
+    if (rule.frequency == 'daily') {
+      final diff = d.difference(b).inDays;
+      final interval = rule.interval <= 0 ? 1 : rule.interval;
+      return diff % interval == 0;
+    }
+
+    if (rule.frequency == 'weekly') {
+      final weekdays = rule.weekdays ?? [b.weekday];
+      if (!weekdays.contains(d.weekday)) return false;
+      final weeks = d.difference(b).inDays ~/ 7;
+      final interval = rule.interval <= 0 ? 1 : rule.interval;
+      return weeks % interval == 0;
+    }
+
+    if (rule.frequency == 'monthly') {
+      final mr = rule.monthlyRule;
+      DateTime candidate;
+      final y = d.year;
+      final m = d.month;
+
+      if (mr == null || mr.mode == 'day') {
+        final day = mr?.dayOfMonth ?? b.day;
+        final dd = day <= _daysInMonth(y, m) ? day : _daysInMonth(y, m);
+        candidate = DateTime(y, m, dd);
+      } else if (mr.mode == 'first_business_day') {
+        candidate = _firstBusinessDay(y, m);
+      } else if (mr.mode == 'last_business_day') {
+        candidate = _lastBusinessDay(y, m);
+      } else {
+        candidate = _nthWeekdayOfMonth(y, m, mr.weekday ?? b.weekday, mr.nth ?? 1);
+      }
+
+      if (candidate.year == d.year && candidate.month == d.month && candidate.day == d.day) {
+        final months = (y - b.year) * 12 + (m - b.month);
+        final interval = rule.interval <= 0 ? 1 : rule.interval;
+        return months >= 0 && months % interval == 0;
+      }
+      return false;
+    }
+
+    if (rule.frequency == 'yearly') {
+      if (d.month == b.month && d.day == b.day) {
+        final years = d.year - b.year;
+        final interval = rule.interval <= 0 ? 1 : rule.interval;
+        return years >= 0 && years % interval == 0;
+      }
+      return false;
+    }
+
+    return false;
+  }
+
   /// Estimate number of occurrences per year for a recurrence rule.
   /// Used for cost projections.
   static double occurrencesPerYear(RecurrenceRule rule) {

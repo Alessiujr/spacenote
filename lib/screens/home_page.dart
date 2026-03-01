@@ -435,13 +435,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCalendar(List<Map<String, dynamic>> upcoming) {
-    // build a set of dates that have events (year-month-day string)
-    final Set<String> daysWithEvents = {};
-    for (final it in upcoming) {
-      final DateTime d = it['nextDate'];
-      daysWithEvents.add('${d.year}-${d.month}-${d.day}');
-    }
-
     int year = _displayYear;
     int month = _displayMonth;
 
@@ -450,8 +443,31 @@ class _HomePageState extends State<HomePage> {
       return next.subtract(const Duration(days: 1)).day;
     }
 
-    final firstWeekday = DateTime(year, month, 1).weekday; // 1..7
     final totalDays = daysInMonth(year, month);
+
+    // build a set of dates that have events (year-month-day string)
+    final Set<String> daysWithEvents = {};
+
+    for (final section in sections) {
+      final rawEvents = section['events'];
+      if (rawEvents is List) {
+        for (final e in rawEvents) {
+          try {
+            final ev = e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e));
+            for (int d = 1; d <= totalDays; d++) {
+              final date = DateTime(year, month, d);
+              if (DateUtilsHelper.occursOn(date, ev.date, ev.recurrence)) {
+                daysWithEvents.add('${date.year}-${date.month}-${date.day}');
+              }
+            }
+          } catch (_) {
+            // ignore malformed events
+          }
+        }
+      }
+    }
+
+    final firstWeekday = DateTime(year, month, 1).weekday; // 1..7
 
     // weekday headers
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -469,16 +485,71 @@ class _HomePageState extends State<HomePage> {
 
     final today = DateTime.now();
     while (day <= totalDays) {
-      final key = '$year-$month-$day';
+      final cellDay = day;
+      final key = '$year-$month-$cellDay';
       final has = daysWithEvents.contains(key);
-      final isToday = (year == today.year && month == today.month && day == today.day);
+      final isToday = (year == today.year && month == today.month && cellDay == today.day);
       final cell = GestureDetector(
         onTap: has
             ? () {
-                // TODO: navigate to event(s) on this date
+                final date = DateTime(year, month, cellDay);
+                final List<Map<String, dynamic>> matches = [];
+
+                for (final section in sections) {
+                  final raw = section['events'];
+                  if (raw is List) {
+                    for (final evRaw in raw) {
+                      try {
+                        final ev = evRaw is EventModel
+                            ? evRaw
+                            : EventModel.fromJson(Map<String, dynamic>.from(evRaw));
+                        if (DateUtilsHelper.occursOn(date, ev.date, ev.recurrence)) {
+                          matches.add({
+                            'title': ev.title,
+                            'space': section['name'],
+                            'icon': section['icon'],
+                            'event': ev,
+                          });
+                        }
+                      } catch (_) {
+                        // ignore malformed event
+                      }
+                    }
+                  }
+                }
+
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text('Scadenze del ${date.day}/${date.month}/${date.year}'),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: matches.isEmpty
+                              ? [const Text('Nessuna scadenza')]
+                              : matches.map((m) {
+                                  final ev = m['event'] as EventModel;
+                                  return ListTile(
+                                    leading: Text(m['icon'] ?? '📌'),
+                                    title: Text(m['title'] ?? ''),
+                                    subtitle: Text(m['space'] ?? ''),
+                                    trailing: ev.cost != null ? Text('€' + ev.cost!.toStringAsFixed(2)) : null,
+                                  );
+                                }).toList(),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Chiudi'))
+                      ],
+                    );
+                  },
+                );
               }
             : null,
-        child: Container(
+            child: Container(
           margin: const EdgeInsets.all(4),
           height: 48,
           decoration: isToday
@@ -488,8 +559,8 @@ class _HomePageState extends State<HomePage> {
                   : null,
           child: Center(
             child: has
-                ? Column(mainAxisSize: MainAxisSize.min, children: [Text('$day', style: TextStyle(fontWeight: FontWeight.bold, color: isToday ? Colors.red : null)), const SizedBox(height: 2), const Icon(Icons.circle, size: 8, color: Colors.deepPurple)])
-                : Text('$day', style: TextStyle(color: isToday ? Colors.red : null)),
+                ? Column(mainAxisSize: MainAxisSize.min, children: [Text('$cellDay', style: TextStyle(fontWeight: FontWeight.bold, color: isToday ? Colors.red : null)), const SizedBox(height: 2), const Icon(Icons.circle, size: 8, color: Colors.deepPurple)])
+                : Text('$cellDay', style: TextStyle(color: isToday ? Colors.red : null)),
           ),
         ),
       );
