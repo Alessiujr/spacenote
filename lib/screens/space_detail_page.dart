@@ -1,16 +1,25 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../models/event_model.dart';
 import '../core/utils/date_utils.dart';
 
 class SpaceDetailPage extends StatefulWidget {
   final String spaceName;
   final List<EventModel> events;
+  final String? imagePath;
+  final ValueChanged<String?>? onImageChanged;
   final ValueChanged<List<EventModel>>? onEventsChanged;
 
   const SpaceDetailPage({
     super.key,
     required this.spaceName,
     required this.events,
+    this.imagePath,
+    this.onImageChanged,
     this.onEventsChanged,
   });
 
@@ -25,6 +34,43 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
   void initState() {
     super.initState();
     events = List.from(widget.events);
+    _imagePath = widget.imagePath;
+  }
+
+  String? _imagePath;
+
+  Future<void> _pickAndSaveImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 1600, imageQuality: 80);
+      if (picked == null) return;
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName = 'space_${widget.spaceName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedPath = '${appDir.path}/$fileName';
+
+      final savedFile = await File(picked.path).copy(savedPath);
+
+      setState(() {
+        _imagePath = savedFile.path;
+      });
+
+      widget.onImageChanged?.call(_imagePath);
+    } catch (e) {
+      // ignore errors
+    }
+  }
+
+  Future<void> _removeImage() async {
+    if (_imagePath == null) return;
+    try {
+      final f = File(_imagePath!);
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+    setState(() {
+      _imagePath = null;
+    });
+    widget.onImageChanged?.call(null);
   }
 
   void _addEventDialog() {
@@ -459,7 +505,53 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
         title: Text(widget.spaceName),
       ),
 
-      body: _buildEventList(),
+      body: Column(
+        children: [
+          // image header
+          if (_imagePath != null)
+            Stack(
+              children: [
+                Image.file(File(_imagePath!), width: double.infinity, height: 200, fit: BoxFit.cover),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Row(
+                    children: [
+                      IconButton(onPressed: () => _pickAndSaveImage(ImageSource.camera), icon: const Icon(Icons.camera_alt, color: Colors.white)),
+                      IconButton(onPressed: () => _pickAndSaveImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, color: Colors.white)),
+                      IconButton(onPressed: _removeImage, icon: const Icon(Icons.delete, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            Container(
+              width: double.infinity,
+              height: 160,
+              color: Colors.grey[200],
+              child: Center(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    // pick source
+                    showModalBottomSheet(context: context, builder: (c) {
+                      return SafeArea(
+                        child: Wrap(children: [
+                          ListTile(leading: const Icon(Icons.photo_library), title: const Text('Gallery'), onTap: () { Navigator.pop(c); _pickAndSaveImage(ImageSource.gallery); }),
+                          ListTile(leading: const Icon(Icons.camera_alt), title: const Text('Camera'), onTap: () { Navigator.pop(c); _pickAndSaveImage(ImageSource.camera); }),
+                        ]),
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.image),
+                  label: const Text('Add image'),
+                ),
+              ),
+            ),
+
+          Expanded(child: _buildEventList()),
+        ],
+      ),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _addEventDialog,

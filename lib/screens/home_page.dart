@@ -52,6 +52,7 @@ class _HomePageState extends State<HomePage> {
         sections = data.map((s) {
           final name = s['name'];
           final icon = s['icon'];
+          final imagePath = s['imagePath'];
           var events = s['events'];
 
           if (events is String) {
@@ -69,6 +70,7 @@ class _HomePageState extends State<HomePage> {
             'name': name,
             'icon': icon,
             'events': events,
+            'imagePath': imagePath,
           };
         }).toList();
 
@@ -96,6 +98,7 @@ class _HomePageState extends State<HomePage> {
         'name': section['name'],
         'icon': section['icon'],
         'events': eventsJson,
+        'imagePath': section['imagePath'],
       };
     }).toList();
 
@@ -234,6 +237,14 @@ class _HomePageState extends State<HomePage> {
                       return SpaceDetailPage(
                         spaceName: section['name'],
                         events: eventsList,
+                        imagePath: section['imagePath'],
+                        onImageChanged: (newPath) async {
+                          setState(() {
+                            final idx = sections.indexWhere((s) => s['name'] == section['name']);
+                            if (idx != -1) sections[idx]['imagePath'] = newPath;
+                          });
+                          await _saveSections();
+                        },
                         onEventsChanged: (updated) async {
                           // persist updated events back into sections and save
                           setState(() {
@@ -367,18 +378,32 @@ class _HomePageState extends State<HomePage> {
                       context,
                       MaterialPageRoute(
                         builder: (_) {
-                          // build events list for the target space
+                          // build events list and find imagePath for the target space
                           final targetSection = sections.firstWhere((s) => s['name'] == item['space'], orElse: () => <String, dynamic>{});
                           final raw = (targetSection is Map && targetSection.isNotEmpty) ? targetSection['events'] : [];
                           final eventsList = (raw is List) ? raw.map<EventModel>((e) => e is EventModel ? e : EventModel.fromJson(Map<String, dynamic>.from(e))).toList() : <EventModel>[];
+                          final imagePath = (targetSection is Map && targetSection.isNotEmpty) ? targetSection['imagePath'] : null;
 
-                          return SpaceDetailPage(spaceName: item['space'], events: eventsList, onEventsChanged: (updated) async {
-                            setState(() {
-                              final idx = sections.indexWhere((s) => s['name'] == item['space']);
-                              if (idx != -1) sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
-                            });
-                            await _saveSections();
-                          });
+                          return SpaceDetailPage(
+                            spaceName: item['space'],
+                            events: eventsList,
+                            imagePath: imagePath,
+                            onImageChanged: (newPath) async {
+                              setState(() {
+                                final idx = sections.indexWhere((s) => s['name'] == item['space']);
+                                if (idx != -1) sections[idx]['imagePath'] = newPath;
+                              });
+                              await _saveSections();
+                            },
+                            onEventsChanged: (updated) async {
+                              setState(() {
+                                final idx = sections.indexWhere((s) => s['name'] == item['space']);
+                                if (idx != -1) sections[idx]['events'] = updated.map((e) => e.toJson()).toList();
+                              });
+                              await _saveSections();
+                            },
+                          );
+                          
                         },
                       ),
                     );

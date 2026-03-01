@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class MonthlyRule {
   final String mode; // 'day', 'first_business_day', 'last_business_day', 'nth_weekday'
   final int? dayOfMonth;
