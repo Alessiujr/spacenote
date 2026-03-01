@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
 import 'services/local_storage_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +34,18 @@ class _SpaceNoteAppState extends State<SpaceNoteApp> {
     return ThemeMode.system;
   }
 
+  Locale? _localeFromSettings() {
+    final s = LocalStorageService.settingsNotifier.value;
+    if (s == null) return null;
+    final lang = s['language'];
+    if (lang == null || lang == 'system') return null;
+    try {
+      return Locale(lang.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -40,6 +54,14 @@ class _SpaceNoteAppState extends State<SpaceNoteApp> {
       themeMode: _themeModeFromSettings(),
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
+      locale: _localeFromSettings(),
+      supportedLocales: const [Locale('en'), Locale('it')],
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

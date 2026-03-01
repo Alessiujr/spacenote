@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'settings_page.dart';
+import '../l10n/app_localizations.dart';
 import '../core/utils/date_utils.dart';
 import '../services/local_storage_service.dart';
 import 'space_detail_page.dart';
@@ -147,7 +148,7 @@ class _HomePageState extends State<HomePage> {
               child: SizedBox(
                 width: min(600, MediaQuery.of(context).size.width * 0.9),
                 child: AlertDialog(
-                  title: const Text("Add Space"),
+                  title: Text(AppLocalizations.of(context)?.t('add_space') ?? 'Add Space'),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -156,8 +157,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       TextField(
                         controller: nameController,
-                        decoration:
-                            const InputDecoration(labelText: "Space name"),
+                        decoration: InputDecoration(labelText: AppLocalizations.of(context)?.t('space_name') ?? 'Space name'),
                       ),
                       const SizedBox(height: 20),
 
@@ -273,7 +273,7 @@ class _HomePageState extends State<HomePage> {
             selected: selectedSection == 'Spacenote',
             selectedTileColor: Colors.deepPurple.withOpacity(0.1),
             leading: const Text('🏠'),
-            title: const Text('Spacenote'),
+            title: Text(AppLocalizations.of(context)?.t('app_title') ?? 'Spacenote'),
             onTap: () {
               Navigator.pop(context);
               setState(() {
@@ -337,16 +337,16 @@ class _HomePageState extends State<HomePage> {
               },
 
               onLongPress: () async {
+                final loc = AppLocalizations.of(context) ?? AppLocalizations(const Locale('en'));
                 await showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text("Delete Space"),
-                    content: const Text(
-                        "Are you sure you want to delete this space?"),
+                    title: Text(loc.t('delete_space_title')),
+                    content: Text(loc.t('delete_space_confirm')),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text("Cancel"),
+                        child: Text(loc.t('cancel')),
                       ),
                       TextButton(
                         onPressed: () async {
@@ -359,9 +359,9 @@ class _HomePageState extends State<HomePage> {
 
                           Navigator.pop(context);
                         },
-                        child: const Text(
-                          "Delete",
-                          style: TextStyle(color: Colors.red),
+                        child: Text(
+                          loc.t('delete'),
+                          style: const TextStyle(color: Colors.red),
                         ),
                       ),
                     ],
@@ -375,7 +375,7 @@ class _HomePageState extends State<HomePage> {
 
           ListTile(
             leading: const Text("➕"),
-            title: const Text("Add Space"),
+            title: Text(AppLocalizations.of(context)?.t('add_space') ?? 'Add Space'),
             onTap: () {
               Navigator.pop(context);
               _showAddSectionDialog();
@@ -723,9 +723,9 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
 
-        title: const Text(
-          "Spacenote",
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          AppLocalizations.of(context)?.t('app_title') ?? 'Spacenote',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
 

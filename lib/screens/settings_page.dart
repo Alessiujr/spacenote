@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
+import '../l10n/app_localizations.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -37,18 +38,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context) ?? AppLocalizations(const Locale('en'));
     final first = _settings['firstDayOfWeek'] ?? DateTime.monday;
     final dateFormat = _settings['dateFormat'] ?? 'dd/MM/yyyy';
     final currency = _settings['currency'] ?? '€';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Impostazioni')),
+      appBar: AppBar(title: Text(loc.t('settings'))),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
           ListTile(
-            title: const Text('Primo giorno della settimana'),
-            subtitle: Text(first == DateTime.monday ? 'Lunedì' : 'Domenica'),
+            title: Text(loc.t('first_day_of_week')),
+            subtitle: Text(first == DateTime.monday ? loc.t('monday') : loc.t('sunday')),
             trailing: Switch(
               value: first == DateTime.monday,
               onChanged: (v) {
@@ -61,13 +63,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           ListTile(
-            title: const Text('Formato data'),
+            title: Text(loc.t('date_format')),
             subtitle: Text(dateFormat),
             onTap: () async {
               final chosen = await showDialog<String>(
                 context: context,
                 builder: (c) => SimpleDialog(
-                  title: const Text('Formato data'),
+                  title: Text(loc.t('date_format')),
                   children: [
                     SimpleDialogOption(onPressed: () => Navigator.pop(c, 'dd/MM/yyyy'), child: const Text('dd/MM/yyyy')),
                     SimpleDialogOption(onPressed: () => Navigator.pop(c, 'MM/dd/yyyy'), child: const Text('MM/dd/yyyy')),
@@ -82,18 +84,18 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           ListTile(
-            title: const Text('Valuta predefinita'),
+            title: Text(loc.t('currency')),
             subtitle: Text(currency),
             onTap: () async {
               final ctrl = TextEditingController(text: currency);
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (c) => AlertDialog(
-                  title: const Text('Valuta'),
-                  content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Simbolo (es. € or \$)')),
+                  title: Text(loc.t('currency')),
+                  content: TextField(controller: ctrl, decoration: InputDecoration(labelText: loc.t('symbol_label'))),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annulla')),
-                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salva')),
+                    TextButton(onPressed: () => Navigator.pop(c, false), child: Text(loc.t('cancel'))),
+                    TextButton(onPressed: () => Navigator.pop(c, true), child: Text(loc.t('save'))),
                   ],
                 ),
               );
@@ -105,17 +107,17 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           ListTile(
-            title: const Text('Tema'),
+            title: Text(loc.t('theme')),
             subtitle: Text((_settings['themeMode'] ?? 'system').toString()),
             onTap: () async {
               final chosen = await showDialog<String>(
                 context: context,
                 builder: (c) => SimpleDialog(
-                  title: const Text('Tema'),
+                  title: Text(loc.t('theme')),
                   children: [
-                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'system'), child: const Text('System')),
-                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'light'), child: const Text('Light')),
-                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'dark'), child: const Text('Dark')),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'system'), child: Text(loc.t('system'))),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'light'), child: Text(loc.t('light'))),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'dark'), child: Text(loc.t('dark'))),
                   ],
                 ),
               );
@@ -126,8 +128,30 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
 
+          ListTile(
+            title: Text(loc.t('language')),
+            subtitle: Text((_settings['language'] ?? 'system').toString()),
+            onTap: () async {
+              final chosen = await showDialog<String>(
+                context: context,
+                builder: (c) => SimpleDialog(
+                  title: Text(loc.t('language')),
+                  children: [
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'system'), child: Text(loc.t('system'))),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'it'), child: const Text('Italiano')),
+                    SimpleDialogOption(onPressed: () => Navigator.pop(c, 'en'), child: const Text('English')),
+                  ],
+                ),
+              );
+              if (chosen != null) {
+                setState(() => _settings['language'] = chosen);
+                _save();
+              }
+            },
+          ),
+
           SwitchListTile(
-            title: const Text('Notifiche (promemoria)'),
+            title: Text('Notifiche (promemoria)'),
             value: _settings['notifications'] ?? false,
             onChanged: (v) {
               setState(() => _settings['notifications'] = v);
@@ -162,15 +186,15 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 20),
           ListTile(
             leading: const Icon(Icons.sync),
-            title: const Text('Backup (export)'),
+            title: Text('Backup (export)'),
             onTap: () async {
               // quick export: copy sections + settings to clipboard? For now just show a message
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export non implementato (prossimamente)')));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export non implementato (prossimamente)')));
             },
           ),
 
           const SizedBox(height: 40),
-          Center(child: Text('Impostazioni applicate localmente')),
+          Center(child: Text(loc.t('settings'))),
         ],
       ),
     );
