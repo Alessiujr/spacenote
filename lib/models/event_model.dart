@@ -118,6 +118,7 @@ class EventModel {
   final DateTime date;
   final RecurrenceRule recurrence;
   final double? cost;
+  final String? notes;
 
   EventModel({
     required this.id,
@@ -125,6 +126,7 @@ class EventModel {
     required this.date,
     RecurrenceRule? recurrence,
     this.cost,
+    this.notes,
   }) : recurrence = recurrence ?? RecurrenceRule.none();
 
   Map<String, dynamic> toJson() {
@@ -134,6 +136,7 @@ class EventModel {
       'date': date.toIso8601String(),
       'recurrence': recurrence.toJson(),
       'cost': cost,
+      'notes': notes,
     };
   }
 
@@ -148,6 +151,7 @@ class EventModel {
           : (json['cost'] is num
               ? (json['cost'] as num).toDouble()
               : double.tryParse(json['cost'].toString())),
+      notes: json['notes'] as String?,
     );
   }
 }
