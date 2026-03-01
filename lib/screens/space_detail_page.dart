@@ -29,6 +29,8 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     final titleController = TextEditingController();
 
     DateTime selectedDate = DateTime.now();
+    String costInput = '';
+    String? costError;
     String freq = "none";
     String monthlyMode = 'day';
     int dayOfMonth = selectedDate.day;
@@ -161,6 +163,24 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                       ),
                     ],
                   ],
+
+                  const SizedBox(height: 12),
+                  // Optional cost (placed at bottom of dialog)
+                  TextField(
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Optional cost', hintText: 'e.g. 9 or 9.99'),
+                    onChanged: (v) => setDialogState(() {
+                      costInput = v;
+                      costError = null;
+                    }),
+                  ),
+                  if (costError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      costError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
                 ],
               ),
               actions: [
@@ -171,6 +191,17 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                 ElevatedButton(
                   onPressed: () {
                     if (titleController.text.isEmpty) return;
+                    // validate cost format (optional)
+                    double? parsedCost;
+                    if (costInput.trim().isNotEmpty) {
+                      parsedCost = double.tryParse(costInput.replaceAll(',', '.'));
+                      if (parsedCost == null) {
+                        setDialogState(() {
+                          costError = 'Formato errato';
+                        });
+                        return;
+                      }
+                    }
 
                     // build recurrence rule
                     RecurrenceRule rr;
@@ -200,6 +231,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                           title: titleController.text,
                           date: selectedDate,
                           recurrence: rr,
+                          cost: parsedCost,
                         ),
                       );
                     });
@@ -229,8 +261,8 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
       itemBuilder: (context, index) {
         final event = events[index];
 
-        final daysLeft =
-            DateUtilsHelper.daysRemaining(event.date);
+        final nextDate = DateUtilsHelper.nextOccurrence(event.date, event.recurrence);
+        final daysLeft = DateUtilsHelper.daysRemaining(nextDate);
 
         return Card(
           shape:
@@ -238,15 +270,23 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
           child: ListTile(
             title: Text(event.title),
 
-            subtitle: Text(
-              daysLeft >= 0
-                  ? "⏳ $daysLeft days remaining"
-                  : "⚠️ Expired",
-              style: TextStyle(
-                  color: daysLeft < 0 ? Colors.red : Colors.green),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Next: ${nextDate.day}/${nextDate.month}/${nextDate.year}'),
+                const SizedBox(height: 4),
+                Text(event.recurrence.toReadableString()),
+                const SizedBox(height: 6),
+                Text(
+                  daysLeft >= 0 ? "⏳ $daysLeft days remaining" : "⚠️ Expired",
+                  style: TextStyle(color: daysLeft < 0 ? Colors.red : Colors.green),
+                ),
+              ],
             ),
 
-            trailing: Text(event.recurrence.toReadableString()),
+            trailing: event.cost != null
+                ? Text('€' + event.cost!.toStringAsFixed(2))
+                : const Icon(Icons.chevron_right),
           ),
         );
       },

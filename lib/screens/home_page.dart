@@ -103,6 +103,7 @@ class _HomePageState extends State<HomePage> {
   void _showAddSectionDialog() {
     final nameController = TextEditingController();
     String selectedIcon = availableIcons.first;
+    String costInput = '';
 
     showDialog(
       context: context,
@@ -121,6 +122,12 @@ class _HomePageState extends State<HomePage> {
                     controller: nameController,
                     decoration:
                         const InputDecoration(labelText: "Space name"),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Optional cost', hintText: 'e.g. 12.50'),
+                    onChanged: (v) => costInput = v,
                   ),
                   const SizedBox(height: 20),
 
@@ -161,6 +168,11 @@ class _HomePageState extends State<HomePage> {
                     if (nameController.text.isEmpty) return;
 
                     setState(() {
+                      double? parsedCost;
+                      if (costInput.trim().isNotEmpty) {
+                        parsedCost = double.tryParse(costInput.replaceAll(',', '.'));
+                      }
+
                       sections.add({
                         "name": nameController.text,
                         "icon": selectedIcon,
@@ -204,10 +216,10 @@ class _HomePageState extends State<HomePage> {
         children: [
           ...sections.map((section) {
             return ListTile(
-              selected: selectedSection == section["name"],
-              selectedTileColor: Colors.deepPurple.withOpacity(0.1),
-              leading: Text(section["icon"] ?? "📌"),
-              title: Text(section["name"]),
+                    selected: selectedSection == section["name"],
+                    selectedTileColor: Colors.deepPurple.withOpacity(0.1),
+                    leading: Text(section["icon"] ?? "📌"),
+                    title: Text(section["name"]),
 
               onTap: () {
                 Navigator.pop(context);
