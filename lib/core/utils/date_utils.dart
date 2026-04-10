@@ -118,8 +118,10 @@ class DateUtilsHelper {
 
     if (rule.frequency == 'weekly') {
       final weekdays = rule.weekdays ?? [baseDate.weekday];
-      // search next occurrence within next 52 weeks
-      for (int week = 0; week < 52; week++) {
+      final interval = rule.interval <= 0 ? 1 : rule.interval;
+      // search next occurrence within next 52*interval weeks
+      for (int week = 0; week < 52 * interval; week++) {
+        if (week % interval != 0) continue; // only check weeks that match interval
         for (final wd in weekdays) {
           final offset = ((wd - today.weekday) % 7 + 7) % 7; // ensure positive
           final candidate = DateTime(today.year, today.month, today.day).add(Duration(days: (week * 7) + offset));
@@ -131,10 +133,11 @@ class DateUtilsHelper {
 
     if (rule.frequency == 'monthly') {
       final mr = rule.monthlyRule;
+      final interval = rule.interval <= 0 ? 1 : rule.interval;
       int year = now.year;
       int month = now.month;
 
-      for (int i = 0; i < 120; i++) {
+      for (int i = 0; i < 120 * interval; i += interval) {
         final y = year + ((month + i - 1) ~/ 12);
         final m = ((month + i - 1) % 12) + 1;
         DateTime candidate;
@@ -161,9 +164,17 @@ class DateUtilsHelper {
     }
 
     if (rule.frequency == 'yearly') {
+      final interval = rule.interval <= 0 ? 1 : rule.interval;
       int year = now.year;
+      // Align year to the nearest valid occurrence
+      final yearsSinceBase = year - baseDate.year;
+      final yearsToAdd = (yearsSinceBase ~/ interval + 1) * interval;
+      year = baseDate.year + yearsToAdd;
+      
       DateTime candidate = DateTime(year, baseDate.month, baseDate.day);
-      if (candidate.isBefore(today)) candidate = DateTime(year + 1, baseDate.month, baseDate.day);
+      if (candidate.isBefore(today)) {
+        candidate = DateTime(year + interval, baseDate.month, baseDate.day);
+      }
       return candidate;
     }
 

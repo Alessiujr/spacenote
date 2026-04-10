@@ -111,6 +111,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     String costInput = '';
     String? costError;
     String freq = "none";
+    int interval = 1;
     String monthlyMode = 'day';
     int dayOfMonth = selectedDate.day;
     int nth = 1; // for nth_weekday
@@ -174,6 +175,26 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                   ),
 
                   const SizedBox(height: 8),
+
+                  // Interval selector (appears for all recurrences except "none")
+                  if (freq != "none") ...[
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Repeat every N ${_frequencyUnitName(freq)}s',
+                        hintText: '$interval',
+                      ),
+                      onChanged: (val) {
+                        final parsed = int.tryParse(val);
+                        if (parsed != null && parsed >= 1) {
+                          setDialogState(() {
+                            interval = parsed;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
 
                   // Advanced monthly options
                   if (freq == 'monthly') ...[
@@ -298,9 +319,9 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                         mr = MonthlyRule(mode: 'nth_weekday', nth: nth, weekday: nthWeekday);
                       }
 
-                      rr = RecurrenceRule(frequency: 'monthly', monthlyRule: mr);
+                      rr = RecurrenceRule(frequency: 'monthly', interval: interval, monthlyRule: mr);
                     } else {
-                      rr = RecurrenceRule(frequency: freq);
+                      rr = RecurrenceRule(frequency: freq, interval: interval);
                     }
 
                     setState(() {
@@ -330,11 +351,16 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     );
   }
 
-  Widget _buildEventList() {
+  List<Widget> _buildEventListWidgets() {
     if (events.isEmpty) {
-      return const Center(
-        child: Text("No events yet"),
-      );
+      return [
+        const SizedBox(
+          height: 100,
+          child: Center(
+            child: Text("No events yet"),
+          ),
+        ),
+      ];
     }
     final List<EventModel> sortedEvents = List<EventModel>.from(events);
     sortedEvents.sort((a, b) {
@@ -343,11 +369,8 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
       return na.compareTo(nb);
     });
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedEvents.length,
-      itemBuilder: (context, index) {
-        final event = sortedEvents[index];
+    return List.generate(sortedEvents.length, (index) {
+      final event = sortedEvents[index];
 
         final nextDate = DateUtilsHelper.nextOccurrence(event.date, event.recurrence);
         final daysLeft = DateUtilsHelper.daysRemaining(nextDate);
@@ -398,6 +421,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
               final titleController = TextEditingController(text: event.title);
               DateTime editDate = event.date;
               String editFreq = event.recurrence.frequency;
+              int editInterval = event.recurrence.interval;
               String editMonthlyMode = event.recurrence.monthlyRule?.mode ?? 'day';
               int editDayOfMonth = event.recurrence.monthlyRule?.dayOfMonth ?? editDate.day;
               int editNth = event.recurrence.monthlyRule?.nth ?? 1;
@@ -432,6 +456,28 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                               DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
                               DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
                             ], onChanged: (v) { if (v != null) setDialogState(() => editFreq = v); }),
+
+                            const SizedBox(height: 8),
+
+                            // Interval selector (appears for all recurrences except "none")
+                            if (editFreq != "none") ...[
+                              TextField(
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'Repeat every N ${_frequencyUnitName(editFreq)}s',
+                                  hintText: '$editInterval',
+                                ),
+                                onChanged: (val) {
+                                  final parsed = int.tryParse(val);
+                                  if (parsed != null && parsed >= 1) {
+                                    setDialogState(() {
+                                      editInterval = parsed;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                            ],
 
                             if (editFreq == 'monthly') ...[
                               const SizedBox(height: 8),
@@ -482,9 +528,9 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                             else if (editMonthlyMode == 'first_business_day') mr = MonthlyRule(mode: 'first_business_day');
                             else if (editMonthlyMode == 'last_business_day') mr = MonthlyRule(mode: 'last_business_day');
                             else mr = MonthlyRule(mode: 'nth_weekday', nth: editNth, weekday: editNthWeekday);
-                            newRr = RecurrenceRule(frequency: 'monthly', monthlyRule: mr);
+                            newRr = RecurrenceRule(frequency: 'monthly', interval: editInterval, monthlyRule: mr);
                           } else {
-                            newRr = RecurrenceRule(frequency: editFreq);
+                            newRr = RecurrenceRule(frequency: editFreq, interval: editInterval);
                           }
 
                           setState(() {
@@ -529,8 +575,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
                 : const Icon(Icons.chevron_right),
           ),
         );
-      },
-    );
+    });
   }
 
   String _formatDate(DateTime dt) {
@@ -542,6 +587,22 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
     return '$d/$m/$y';
   }
 
+  String _frequencyUnitName(String frequency) {
+    switch (frequency) {
+      case 'daily':
+        return 'day';
+      case 'weekly':
+        return 'week';
+      case 'monthly':
+        return 'month';
+      case 'yearly':
+        return 'year';
+      default:
+        return '';
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -549,7 +610,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
         title: Text(widget.spaceName),
       ),
 
-      body: Column(
+      body: ListView(
         children: [
           // image header
           () {
@@ -597,7 +658,14 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
             );
           }(),
 
-          Expanded(child: _buildEventList()),
+          // Padding for events list
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: _buildEventListWidgets(),
+            ),
+          ),
+
           const Divider(),
           // Costi section
           ListTile(
@@ -714,6 +782,7 @@ class _SpaceDetailPageState extends State<SpaceDetailPage> {
               );
             },
           ),
+          const SizedBox(height: 24),
         ],
       ),
 

@@ -67,24 +67,42 @@ class RecurrenceRule {
 
   String toReadableString() {
     if (frequency == 'none') return 'No recurrence';
-    if (frequency == 'daily') return 'Every $interval day(s)';
+    
+    if (frequency == 'daily') {
+      if (interval == 1) return 'Every day';
+      return 'Every $interval days';
+    }
+    
     if (frequency == 'weekly') {
       final days = (weekdays ?? []).map((d) => _weekdayName(d)).join(', ');
-      return 'Every $interval week(s) on $days';
+      if (interval == 1) return 'Every week on $days';
+      return 'Every $interval weeks on $days';
     }
+    
     if (frequency == 'monthly') {
       final mr = monthlyRule;
-      if (mr == null) return 'Every $interval month(s)';
-      if (mr.mode == 'day') return 'Every month on day ${mr.dayOfMonth}';
-      if (mr.mode == 'first_business_day') return 'Every month on first business day';
-      if (mr.mode == 'last_business_day') return 'Every month on last business day';
-      if (mr.mode == 'nth_weekday') {
-        final nth = mr.nth == -1 ? 'last' : '${mr.nth}º';
-        return 'Every month on $nth ${_weekdayName(mr.weekday ?? 1)}';
+      if (mr == null) {
+        if (interval == 1) return 'Every month';
+        return 'Every $interval months';
       }
-      return 'Every $interval month(s)';
+      
+      final intervalStr = interval == 1 ? 'month' : '$interval months';
+      if (mr.mode == 'day') return 'Every $intervalStr on day ${mr.dayOfMonth}';
+      if (mr.mode == 'first_business_day') return 'Every $intervalStr on first business day';
+      if (mr.mode == 'last_business_day') return 'Every $intervalStr on last business day';
+      if (mr.mode == 'nth_weekday') {
+        final nth = mr.nth == -1 ? 'last' : '${mr.nth}°';
+        return 'Every $intervalStr on $nth ${_weekdayName(mr.weekday ?? 1)}';
+      }
+      if (interval == 1) return 'Every month';
+      return 'Every $interval months';
     }
-    if (frequency == 'yearly') return 'Every year';
+    
+    if (frequency == 'yearly') {
+      if (interval == 1) return 'Every year';
+      return 'Every $interval years';
+    }
+    
     return 'Custom recurrence';
   }
 
